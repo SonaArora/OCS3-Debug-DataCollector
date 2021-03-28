@@ -3,7 +3,7 @@
 # Pod names for gluster and heketi pods
 gluster_pod=""
 heketi_pod=""
-first_gluster_pod=
+first_gluster_pod=""
 
 # commands in pod will timeout after $timeout seconds	
 timeout="120"
@@ -98,7 +98,7 @@ function oc_exec() {
         file=$container_command
         filename=${file// /_}
         echo "Collecting $2 from $1"
-	oc exec -n "$OCS_NAMESPACE" "$container_name"  -- bash -c "$container_command" >> "$command_dump_directory"/"$filename"
+	timeout "$timeout" oc exec -n "$OCS_NAMESPACE" "$container_name"  -- bash -c "$container_command" >> "$command_dump_directory"/"$filename"
 
 }
 
@@ -115,8 +115,8 @@ function collect_gluster_command(){
 	gluster_commands+=("gluster volume get all cluster.op-version")
 
 for (( i=0; i< ${#gluster_commands[@]}; i++ )) ; do	
-	oc_exec "$first_gluster_pod" "${gluster_commands[$i]}" "${gluster_command_dir}"
-    	#  oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
+    oc_exec "$first_gluster_pod" "${gluster_commands[$i]}" "${gluster_command_dir}"
+    # oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
 done
 
 }
