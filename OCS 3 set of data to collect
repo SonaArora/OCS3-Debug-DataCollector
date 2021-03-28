@@ -1,0 +1,77 @@
+OCS 3 Data Collection Set
+
+- From one running glusterfs pod
+---
+# gluster volume status
+# gluster volume info
+# gluster volume get <vol-name> all
+# gluster volume heal <vol-name> info
+# gluster volume heal <vol-name> info split-brain
+# gluster volume get all cluster.op-version
+---
+
+- From all glusterfs pods
+
+----
+# rpm -qa|grep gluster
+# gluster peer status
+# pvs
+# vgs
+# lvs
+# df -h
+# lsblk
+
+# systemctl status glusterd
+# systemctl status gluster-blockd
+# systemctl status gluster-block-target
+# systemctl status tcmu-runner
+
+# gluster snapshot list
+# gluster snapshot status <snap-name>
+# gluster snapshot info <snap-name>
+# gluster snapshot config
+---
+
+2. Configuration files
+
+ /etc/fstab
+ /var/lib/heketi/fstab  (for Independent Mode)
+ /var/lib/glusterd/
+ /etc/target/saveconfig.json
+
+
+3. LOGS:
+
+/var/log/glusterfs
+/var/log/gluster-blockd  (Independent Mode)
+/var/lib/origin/openshift.local.volumes/plugins/kubernetes.io
+
+
+----------
+
+HEKETI DATA :
+
+# heketi-cli topology info
+# heketi-cli db dump
+# heketi-cli volume list
+# rpm -qa|grep heketi
+# oc logs <heketi>
+
+
+-----------
+
+OC Command:
+
+# oc get all
+# oc get nodes
+# oc get pods -o wide
+# oc get sc
+# oc get pvc
+# oc get pv
+# oc get serviceaccount
+
+2. From openshift nodes  
+# rpm -qa|grep openshift-ansible
+
+---------
+
