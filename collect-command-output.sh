@@ -81,9 +81,9 @@ function initialise() {
 # If no argument is passed, use present working directory
 	if [ ! -d "${DATA_COLLECTION_PATH}" ]; then
         DATA_COLLECTION_PATH=$(pwd)
-    fi
+	fi
 
-    get_pod_name
+	get_pod_name
 }
 
 
@@ -92,13 +92,13 @@ function initialise() {
 function oc_exec() {
         container_name="$1"
         container_command="$2"
-		command_dump_directory="$3"
+	command_dump_directory="$3"
         #file=${gluster_commands[$i]}
         #filename=${file// /_}
         file=$container_command
         filename=${file// /_}
         echo "Collecting $2 from $1"
-		oc exec -n "$OCS_NAMESPACE" "$container_name"  -- bash -c "$container_command" >> "$command_dump_directory"/"$filename"
+	oc exec -n "$OCS_NAMESPACE" "$container_name"  -- bash -c "$container_command" >> "$command_dump_directory"/"$filename"
 
 }
 
@@ -112,11 +112,11 @@ function collect_gluster_command(){
         gluster_commands+=("gluster volume list")
         gluster_commands+=("gluster volume info")
         gluster_commands+=("gluster volume status")
-		gluster_commands+=("gluster volume get all cluster.op-version")
+	gluster_commands+=("gluster volume get all cluster.op-version")
 
 for (( i=0; i< ${#gluster_commands[@]}; i++ )) ; do	
 	oc_exec "$first_gluster_pod" "${gluster_commands[$i]}" "${gluster_command_dir}"
-    #  oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
+    	#  oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
 done
 
 }
