@@ -18,13 +18,19 @@ function check_args() {
 		exit 0;
 	fi
 
+	oc get projects |grep "$OCS_NAMESPACE"
+	if [ $? -eq 1 ]; then
+		echo "Namespace $OCS_NAMESPACE does not exist. Please provide valid OCS namespace"
+		exit 0;
+	fi
+
 }
 
 # Fetch gluster and heketi pod names
 function get_pod_name() {
 
-	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|awk '{print $1}')
-	heketi_pod=$(oc get pods -n "$OCS_NAMESPACE" |grep heketi|awk '{print $1}')
+	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|grep "Running" | awk '{print $1}')
+	heketi_pod=$(oc get pods -n "$OCS_NAMESPACE" |grep heketi| grep "Running" | awk '{print $1}')
 	first_gluster_pod=$(echo "$gluster_pods"|awk '{print $1}'| head -1)
 }
 
@@ -90,14 +96,14 @@ function initialise() {
 
 # oc exec command to run gluster and heketi commands in the pods.
 function oc_exec() {
-        container_name="$1"
-        container_command="$2"
+    container_name="$1"
+    container_command="$2"
 	command_dump_directory="$3"
-        #file=${gluster_commands[$i]}
-        #filename=${file// /_}
-        file=$container_command
-        filename=${file// /_}
-        echo "Collecting $2 from $1"
+    #file=${gluster_commands[$i]}
+    #filename=${file// /_}
+    file=$container_command
+    filename=${file// /_}
+    echo "Collecting $2 from $1"
 	timeout "$timeout" oc exec -n "$OCS_NAMESPACE" "$container_name"  -- bash -c "$container_command" >> "$command_dump_directory"/"$filename"
 
 }
@@ -106,12 +112,12 @@ function oc_exec() {
 # Collect gluster commands output
 function collect_gluster_command(){
 # gluster commands
-        gluster_commands=()
-        gluster_commands+=("gluster peer status")
-        gluster_commands+=("gluster pool list")
-        gluster_commands+=("gluster volume list")
-        gluster_commands+=("gluster volume info")
-        gluster_commands+=("gluster volume status")
+    gluster_commands=()
+    gluster_commands+=("gluster peer status")
+    gluster_commands+=("gluster pool list")
+    gluster_commands+=("gluster volume list")
+    gluster_commands+=("gluster volume info")
+    gluster_commands+=("gluster volume status")
 	gluster_commands+=("gluster volume get all cluster.op-version")
 
 for (( i=0; i< ${#gluster_commands[@]}; i++ )) ; do	
@@ -131,12 +137,32 @@ function collect_heketi_command() {
 	heketi_commands+=("heketi-cli volume list")
 	heketi_commands+=("heketi-cli server operations info")
 
-for (( i=0; i< ${#heketi_commands[@]}; i++ )); do
-	oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output"
-done
+	for (( i=0; i< ${#heketi_commands[@]}; i++ )); do
+		oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output"
+	done
 
 }
 
+
+function collect_oc_command() {
+
+	# oc commands
+	oc_commands=()
+	oc_commands+=("oc get all")
+	oc_commands+=("oc get pods -o wide")
+	oc_commands+=("oc get nodes")
+	oc_commands+=("oc get sc")
+	oc_commands+=("oc get pvc")
+	oc_commands+=("oc get pv")
+	oc_commands+=("oc get serviceaccount")
+	for (( i=0; i< ${#oc_commands[@]}; i++ )); do
+		file=${oc_commands[$i]}
+		filename=${file// /_}
+		echo "Collecting ${oc_commands[$i]} from $OCS_NAMESPACE"
+		timeout "$timeout" ${oc_commands[$i]} -n "$OCS_NAMESPACE" >> "$oc_command_output"/"$filename"
+	done 
+
+}
 
 # Function to create tar file from /tmp/ and remove temporary directory.
 function end(){
@@ -153,4 +179,5 @@ check_args
 initialise
 collect_gluster_command
 collect_heketi_command
+collect_oc_command
 end
