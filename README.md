@@ -11,7 +11,7 @@ It's a tool to collect data for debugging OCS 3 issues.
 
 - How to run the script:
 
-$ ./collect_command.sh <Directory-to-dump-data> <ocs-namespace>
+$ ./collect_command.sh 'Directory-to-dump-data' 'ocs-namespace'
   
 Ex.: ./collect-command-output.sh  ocs3-dump app-storage
 
