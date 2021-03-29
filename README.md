@@ -8,6 +8,7 @@ It's a tool to collect data for debugging OCS 3 issues.
 3. Log files
 
 * The script is aimed to collect data for **OCS 3 Converged Mode**. For Independent mode, sosreport can be collected.
+* The script should be run on one of the master nodes.
 
 - How to run the script:
 
