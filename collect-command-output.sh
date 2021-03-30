@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pod names for gluster and heketi pods
-gluster_pod=""
+gluster_pod_array=()
 heketi_pod=""
 first_gluster_pod=""
 
@@ -30,6 +30,8 @@ function check_args() {
 function get_pod_name() {
 
 	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|grep "Running" | awk '{print $1}')
+	tempvar=$(echo $gluster_pods)
+	gluster_pod_array=(${tempvar//[\(\),]/})
 	heketi_pod=$(oc get pods -n "$OCS_NAMESPACE" |grep heketi| grep "Running" | awk '{print $1}')
 	first_gluster_pod=$(echo "$gluster_pods"|awk '{print $1}'| head -1)
 }
@@ -119,13 +121,44 @@ function collect_gluster_command(){
     gluster_commands+=("gluster volume info")
     gluster_commands+=("gluster volume status")
 	gluster_commands+=("gluster volume get all cluster.op-version")
+	#gluster_commands+=("demo")
 
+
+# collect common gluster commands from one glusterfs pod
 for (( i=0; i< ${#gluster_commands[@]}; i++ )) ; do	
     oc_exec "$first_gluster_pod" "${gluster_commands[$i]}" "${gluster_command_dir}"
     # oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
 done
 
+	gluster_command_from_each_pod=()
+	gluster_command_from_each_pod+=("pvs --all --units k --reportformat=json")
+	gluster_command_from_each_pod+=("vgs --all --units k --reportformat=json")
+	gluster_command_from_each_pod+=("lvs --all --units k --reportformat=json")
+	gluster_command_from_each_pod+=("df -h")
+	gluster_command_from_each_pod+=("rpm -qa|grep gluster")
+	gluster_command_from_each_pod+=("gluster peer status")
+	gluster_command_from_each_pod+=("systemctl status glusterd")
+	gluster_command_from_each_pod+=("systemctl status gluster-blockd")
+	gluster_command_from_each_pod+=("systemctl status gluster-block-target")
+	gluster_command_from_each_pod+=("systemctl status tcmu-runner")
+	gluster_command_from_each_pod+=("gluster snapshot list")
+	gluster_command_from_each_pod+=("gluster snaphsot config")
+
+# collect gluster commands from one all glusterfs pod
+
+for (( l=0; l< ${#gluster_pod_array[@]}; l++ )); do
+
+	dirname="${gluster_pod_command_dir}"/"${gluster_pod_array[$l]}"
+	mkdir $dirname
+
+	for (( j=0; j< ${#gluster_command_from_each_pod[@]}; j++ )) ; do
+		oc_exec "${gluster_pod_array[$l]}" "${gluster_command_from_each_pod[$j]}" "$dirname"
+	done
+	
+done
+
 }
+
 
 
 # Collect heketi commands output
@@ -137,10 +170,13 @@ function collect_heketi_command() {
 	heketi_commands+=("heketi-cli volume list")
 	heketi_commands+=("heketi-cli server operations info")
 
-	for (( i=0; i< ${#heketi_commands[@]}; i++ )); do
-		oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output"
-	done
-
+	if [ -z "$heketi_pod" ]; then
+		echo "Heketi pod is not running, hence heketi commands are not captured"
+	else
+		for (( i=0; i< ${#heketi_commands[@]}; i++ )); do
+			oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output"
+		done
+	fi
 }
 
 
@@ -155,6 +191,7 @@ function collect_oc_command() {
 	oc_commands+=("oc get pvc")
 	oc_commands+=("oc get pv")
 	oc_commands+=("oc get serviceaccount")
+
 	for (( i=0; i< ${#oc_commands[@]}; i++ )); do
 		file=${oc_commands[$i]}
 		filename=${file// /_}
