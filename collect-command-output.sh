@@ -1,16 +1,26 @@
 #!/bin/bash
 
 # Pod names for gluster and heketi pods
+
 gluster_pod_array=()
 heketi_pod=""
 first_gluster_pod=""
 
 # commands in pod will timeout after $timeout seconds	
+
 timeout="120"
 
 # Data collection path is an arugment
+
 DATA_COLLECTION_PATH=$1
 OCS_NAMESPACE=$2
+
+# node name where glusterfs and heketi pods are running
+
+node=()
+
+# Check namespace ($2) is empty or not.
+# Also check if namespace exists or not. 
 
 function check_args() {
 	if [ -z "$OCS_NAMESPACE" ]; then
@@ -26,18 +36,9 @@ function check_args() {
 
 }
 
-# Fetch gluster and heketi pod names
-function get_pod_name() {
-
-	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|grep "Running" | awk '{print $1}')
-	tempvar=$(echo $gluster_pods)
-	gluster_pod_array=(${tempvar//[\(\),]/})
-	heketi_pod=$(oc get pods -n "$OCS_NAMESPACE" |grep heketi| grep "Running" | awk '{print $1}')
-	first_gluster_pod=$(echo "$gluster_pods"|awk '{print $1}'| head -1)
-}
 
 
-# Dump data to temporary directory at /tmp/
+# Directory structure where data is dumped
 # /tmp/tmp.jskVuZ27zT/
 # ├── command_output
 # │   ├── gluster_common_command_output
@@ -59,6 +60,7 @@ function get_pod_name() {
 
 
 # Function to create directory structure where data will be dumped
+
 function initialise() {
 	
 	tempdirname=$(mktemp -d)
@@ -69,24 +71,25 @@ function initialise() {
 
 	gluster_command_dir="$tempdirname/command_output/gluster_command_output"
 	gluster_pod_command_dir="$tempdirname/command_output/from_each-gluster_pods"
-	heketi_command_output="$tempdirname/command_output/heketi_command_output"
-	oc_command_output="$tempdirname/command_output/oc_command_output"
-	gluster_config_files="$tempdirname/config_file/gluster"
-	heketi_config_files="$tempdirname/config_file/heketi"
-	gluster_log_files="$tempdirname/logs/gluster"
-	heketi_log_files="$tempdirname/logs/heketi"
+	heketi_command_output_dir="$tempdirname/command_output/heketi_command_output"
+	oc_command_output_dir="$tempdirname/command_output/oc_command_output"
+	gluster_config_files_dir="$tempdirname/config_file/gluster"
+	heketi_config_files_dir="$tempdirname/config_file/heketi"
+	gluster_log_files_dir="$tempdirname/logs/gluster"
+	heketi_log_files_dir="$tempdirname/logs/heketi"
 
 	mkdir "$gluster_command_dir"
 	mkdir "$gluster_pod_command_dir"
-	mkdir "$heketi_command_output"
-	mkdir "$oc_command_output"
-	mkdir "$gluster_config_files"
-	mkdir "$heketi_config_files"
-	mkdir "$gluster_log_files"
-	mkdir "$heketi_log_files"
+	mkdir "$heketi_command_output_dir"
+	mkdir "$oc_command_output_dir"
+	mkdir "$gluster_config_files_dir"
+	mkdir "$heketi_config_files_dir"
+	mkdir "$gluster_log_files_dir"
+	mkdir "$heketi_log_files_dir"
 	
 
 # If no argument is passed, use present working directory
+
 	if [ ! -d "${DATA_COLLECTION_PATH}" ]; then
         DATA_COLLECTION_PATH=$(pwd)
 	fi
@@ -96,13 +99,33 @@ function initialise() {
 
 
 
+
+# Fetch gluster and heketi pod names
+
+function get_pod_name() {
+
+	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|grep "Running" | awk '{print $1}')
+	gluster_pod_array=(${gluster_pods//[\(\),]/})
+	heketi_pod=$(oc get pods -n "$OCS_NAMESPACE" |grep heketi| grep "Running" | awk '{print $1}')
+	first_gluster_pod=${gluster_pod_array[0]}
+}
+
+
+
+
+function get_node_name() {
+	
+	node_temp=$(oc get nodes --show-labels |grep 'glusterfs=storage-host'|awk '{print $1}')
+	node=(${node_temp//[\(\),]/})
+
+}
+
 # oc exec command to run gluster and heketi commands in the pods.
+
 function oc_exec() {
     container_name="$1"
     container_command="$2"
 	command_dump_directory="$3"
-    #file=${gluster_commands[$i]}
-    #filename=${file// /_}
     file=$container_command
     filename=${file// /_}
     echo "Collecting $2 from $1"
@@ -111,20 +134,21 @@ function oc_exec() {
 }
 
 
+
 # Collect gluster commands output
-function collect_gluster_command(){
+
+function collect_gluster_output(){
+
 # gluster commands
-    gluster_commands=()
-    gluster_commands+=("gluster peer status")
-    gluster_commands+=("gluster pool list")
+    
+	gluster_commands=()
     gluster_commands+=("gluster volume list")
     gluster_commands+=("gluster volume info")
     gluster_commands+=("gluster volume status")
 	gluster_commands+=("gluster volume get all cluster.op-version")
-	#gluster_commands+=("demo")
 
+# collect common gluster commands from one running glusterfs pod
 
-# collect common gluster commands from one glusterfs pod
 for (( i=0; i< ${#gluster_commands[@]}; i++ )) ; do	
     oc_exec "$first_gluster_pod" "${gluster_commands[$i]}" "${gluster_command_dir}"
     # oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
@@ -144,7 +168,7 @@ done
 	gluster_command_from_each_pod+=("gluster snapshot list")
 	gluster_command_from_each_pod+=("gluster snaphsot config")
 
-# collect gluster commands from one all glusterfs pod
+# collect gluster commands from all running glusterfs pod
 
 for (( l=0; l< ${#gluster_pod_array[@]}; l++ )); do
 
@@ -162,25 +186,27 @@ done
 
 
 # Collect heketi commands output
-function collect_heketi_command() {
+function collect_heketi_output() {
 
 # heketi commands
 	heketi_commands=()
 	heketi_commands+=("heketi-cli topology info")
 	heketi_commands+=("heketi-cli volume list")
 	heketi_commands+=("heketi-cli server operations info")
+	heketi_commands+=("heketi-cli db dump")
 
 	if [ -z "$heketi_pod" ]; then
 		echo "Heketi pod is not running, hence heketi commands are not captured"
 	else
 		for (( i=0; i< ${#heketi_commands[@]}; i++ )); do
-			oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output"
+			oc_exec "$heketi_pod" "${heketi_commands[$i]}" "$heketi_command_output_dir"
 		done
 	fi
 }
 
 
-function collect_oc_command() {
+
+function collect_oc_output() {
 
 	# oc commands
 	oc_commands=()
@@ -196,13 +222,68 @@ function collect_oc_command() {
 		file=${oc_commands[$i]}
 		filename=${file// /_}
 		echo "Collecting ${oc_commands[$i]} from $OCS_NAMESPACE"
-		timeout "$timeout" ${oc_commands[$i]} -n "$OCS_NAMESPACE" >> "$oc_command_output"/"$filename"
+		timeout "$timeout" ${oc_commands[$i]} -n "$OCS_NAMESPACE" >> "$oc_command_output_dir"/"$filename"
 	done 
 
 }
 
+
+
+# To collect heketi and gluster configuration files
+
+
+function scp_and_tar() {
+
+	servername="$1"
+	source_directory="$2"
+	target_directory="$3"
+
+	timeout "$timeout" scp -r "$servername":"$source_directory" "$destination_directory"
+
+	tar -zcvf "$tempdirname"/config_file/gluster-config.tar.gz "$gluster_config_files_dir" 
+
+	rm -rf "$tempdirname"/config_file/gluster/
+
+}
+
+
+
+function collect_config_files() {
+
+	get_node_name	
+
+	gluster_config_file=()
+	gluster_config_file+=("/etc/fstab")
+	gluster_config_file+=("/var/lib/glusterd/")
+	gluster_config_file+=("/etc/target/saveconfig.json")
+
+	heketi_config_file+=("heketi-cli db dump")
+
+	for n in ${node[@]}; do
+		tmp_dir=("$gluster_config_files_dir"/"$n")
+		mkdir "$tmp_dir"
+		for file in ${gluster_config_file[@]}; do
+			scp_and_tar  "$n" "$file" "$tmp_dir"
+		done
+	done
+	
+}
+
+
+function collect_log() {
+
+	get_node_name
+
+	log_files=()
+	log_files+=("/var/log/glusterfs")
+
+
+}
+
+
 # Function to create tar file from /tmp/ and remove temporary directory.
-function end(){
+
+function end() {
 	outputfile="$DATA_COLLECTION_PATH/ocs3-debug.tar.gz"
 	tar -zcvf  "$outputfile" "$tempdirname" > /dev/null
 	echo "--------------------------"
@@ -214,7 +295,8 @@ function end(){
 
 check_args
 initialise
-collect_gluster_command
-collect_heketi_command
-collect_oc_command
+collect_gluster_output
+collect_heketi_output
+collect_oc_output
+collect_config_files
 end
