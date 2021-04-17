@@ -74,18 +74,18 @@ function initialise() {
 	heketi_command_output_dir="$tempdirname/command_output/heketi_command_output"
 	oc_command_output_dir="$tempdirname/command_output/oc_command_output"
 	gluster_config_files_dir="$tempdirname/config_file/gluster"
-	heketi_config_files_dir="$tempdirname/config_file/heketi"
+#	heketi_config_files_dir="$tempdirname/config_file/heketi"
 	gluster_log_files_dir="$tempdirname/logs/gluster"
-	heketi_log_files_dir="$tempdirname/logs/heketi"
+#	heketi_log_files_dir="$tempdirname/logs/heketi"
 
 	mkdir "$gluster_command_dir"
 	mkdir "$gluster_pod_command_dir"
 	mkdir "$heketi_command_output_dir"
 	mkdir "$oc_command_output_dir"
 	mkdir "$gluster_config_files_dir"
-	mkdir "$heketi_config_files_dir"
+#	mkdir "$heketi_config_files_dir"
 	mkdir "$gluster_log_files_dir"
-	mkdir "$heketi_log_files_dir"
+#	mkdir "$heketi_log_files_dir"
 	
 
 # If no argument is passed, use present working directory
@@ -173,7 +173,7 @@ done
 for (( l=0; l< ${#gluster_pod_array[@]}; l++ )); do
 
 	dirname="${gluster_pod_command_dir}"/"${gluster_pod_array[$l]}"
-	mkdir $dirname
+	mkdir "$dirname"
 
 	for (( j=0; j< ${#gluster_command_from_each_pod[@]}; j++ )) ; do
 		oc_exec "${gluster_pod_array[$l]}" "${gluster_command_from_each_pod[$j]}" "$dirname"
@@ -227,25 +227,41 @@ function collect_oc_output() {
 
 }
 
+function check_free_space() {
+
+//To check if the filesystem where data is dumped has enough free space or not.
+
+}
 
 
-# To collect heketi and gluster configuration files
-
-
-function scp_and_tar() {
+# To copy heketi and gluster config/log files to temporary directory.
+function copy_data() {
 
 	servername="$1"
 	source_directory="$2"
 	target_directory="$3"
 
-	timeout "$timeout" scp -r "$servername":"$source_directory" "$destination_directory"
-
-	tar -zcvf "$tempdirname"/config_file/gluster-config.tar.gz "$gluster_config_files_dir" 
-
-	rm -rf "$tempdirname"/config_file/gluster/
-
+	timeout "$timeout" scp -r "$servername":"$source_directory" "$target_directory"
+	echo "Copying $source_directory from $servername to $target_directory"
 }
 
+
+# Make tar of temporary directory where gluster and heketi config/log files are collected, and delete the temporary directory.
+function make_tar() {
+
+    data_dump_dir="$1"
+	tmp_dir="$2"
+
+	if [[ "$data_dump_dir" == **config** ]]; then
+		compressedfile="gluster-config"
+	elif [[ "$data_dump_dir" == **log** ]]; then
+		compressedfile="log-file"
+	fi
+
+	tar -zcvf "$data_dump_dir"/"$compressedfile".tar.gz "$tmp_dir"  > /dev/null
+
+	rm -rf "$tmp_dir"
+}
 
 
 function collect_config_files() {
@@ -257,33 +273,54 @@ function collect_config_files() {
 	gluster_config_file+=("/var/lib/glusterd/")
 	gluster_config_file+=("/etc/target/saveconfig.json")
 
-	heketi_config_file+=("heketi-cli db dump")
+	check_free_space
 
-	for n in ${node[@]}; do
-		tmp_dir=("$gluster_config_files_dir"/"$n")
-		mkdir "$tmp_dir"
-		for file in ${gluster_config_file[@]}; do
-			scp_and_tar  "$n" "$file" "$tmp_dir"
-		done
-	done
+	tempdir=$(mktemp -d)
+
+	for n in "${node[@]}"; do	
+		tmp_config_dir=("$tempdir"/"$n")
+		mkdir "$tmp_config_dir"
 	
-}
+		for file in "${gluster_config_file[@]}"; do
+			copy_data "$n" "$file" "$tmp_config_dir"
+		done
 
+	done
 
-function collect_log() {
-
-	get_node_name
-
-	log_files=()
-	log_files+=("/var/log/glusterfs")
-
+	make_tar "$gluster_config_files_dir" "$tempdir"
 
 }
 
+
+function collect_log_files() {
+
+		get_node_name	
+
+		gluster_log_file=()
+		gluster_log_file=("/var/log/glusterfs")
+
+		check_free_space
+
+		tempdir=$(mktemp -d)
+
+		for n in "${node[@]}"; do
+			tmp_log_dir=("$tempdir"/"$n")
+			mkdir "$tmp_log_dir"
+
+			for file in "${gluster_log_file[@]}"; do
+				copy_data "$n" "$file" "$tmp_log_dir"
+			done
+
+		done
+	
+		make_tar "$gluster_log_files_dir" "$tempdir"
+
+}
 
 # Function to create tar file from /tmp/ and remove temporary directory.
 
 function end() {
+	
 	outputfile="$DATA_COLLECTION_PATH/ocs3-debug.tar.gz"
 	tar -zcvf  "$outputfile" "$tempdirname" > /dev/null
 	echo "--------------------------"
@@ -299,4 +336,5 @@ collect_gluster_output
 collect_heketi_output
 collect_oc_output
 collect_config_files
+collect_log_files
 end
