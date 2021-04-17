@@ -23,13 +23,13 @@ node=()
 # Also check if namespace exists or not. 
 
 function check_args() {
-	if [ -z "$OCS_NAMESPACE" ]; then
+	if [[ -z "$OCS_NAMESPACE" ]]; then
 		echo "Please provide OCS3 namespace and run the script again"
 		exit 0;
 	fi
 
 	oc get projects |grep "$OCS_NAMESPACE"
-	if [ $? -eq 1 ]; then
+	if [[ $? -eq 1 ]]; then
 		echo "Namespace $OCS_NAMESPACE does not exist. Please provide valid OCS namespace"
 		exit 0;
 	fi
@@ -59,11 +59,29 @@ function check_args() {
 
 
 
+
+# To check if the filesystem where data is dumped has enough free space or not.
+function check_free_space() {
+
+	data_dump_dir="$1"
+	free_space=$(df -k "$data_dump_dir" | tail -1 | awk '{print $4}')
+	min_free_space=1048576
+
+	if [[ "$free_space" -lt "$min_free_space" ]]; then
+		echo "Free space at $data_dump_dir is less than $min_free_space Kb, skipping data collection"
+		exit
+	fi
+
+}
+
+
 # Function to create directory structure where data will be dumped
 
 function initialise() {
 	
 	tempdirname=$(mktemp -d)
+
+	check_free_space "$tempdirname"
 
 	mkdir "$tempdirname"/command_output
 	mkdir "$tempdirname"/logs
@@ -227,11 +245,6 @@ function collect_oc_output() {
 
 }
 
-function check_free_space() {
-
-//To check if the filesystem where data is dumped has enough free space or not.
-
-}
 
 
 # To copy heketi and gluster config/log files to temporary directory.
@@ -273,8 +286,6 @@ function collect_config_files() {
 	gluster_config_file+=("/var/lib/glusterd/")
 	gluster_config_file+=("/etc/target/saveconfig.json")
 
-	check_free_space
-
 	tempdir=$(mktemp -d)
 
 	for n in "${node[@]}"; do	
@@ -298,8 +309,6 @@ function collect_log_files() {
 
 		gluster_log_file=()
 		gluster_log_file=("/var/log/glusterfs")
-
-		check_free_space
 
 		tempdir=$(mktemp -d)
 
