@@ -278,7 +278,7 @@ function collect_config_files() {
 	tempdir=$(mktemp -d)
 
 	for n in "${node[@]}"; do	
-		tmp_config_dir=("$tempdir"/"$n")
+		tmp_config_dir="$tempdir"/"$n"
 		mkdir "$tmp_config_dir"
 	
 		for file in "${gluster_config_file[@]}"; do
@@ -304,7 +304,7 @@ function collect_log_files() {
 		tempdir=$(mktemp -d)
 
 		for n in "${node[@]}"; do
-			tmp_log_dir=("$tempdir"/"$n")
+			tmp_log_dir="$tempdir"/"$n"
 			mkdir "$tmp_log_dir"
 
 			for file in "${gluster_log_file[@]}"; do
