@@ -1,42 +1,148 @@
 #!/bin/bash
 
-# Pod names for gluster and heketi pods
+# Initializing variables
 
 gluster_pod_array=()
 heketi_pod=""
 first_gluster_pod=""
 
 # commands in pod will timeout after $timeout seconds	
-
-timeout="120"
+timeout=""
 
 # Data collection path is an arugment
-
-DATA_COLLECTION_PATH=$1
-OCS_NAMESPACE=$2
+DATA_COLLECTION_PATH=
+OCS_NAMESPACE=
 
 # node name where glusterfs and heketi pods are running
-
 node=()
 
-# Check namespace ($2) is empty or not.
-# Also check if namespace exists or not. 
+# To display help for all options
 
-function check_args() {
-	if [[ -z "$OCS_NAMESPACE" ]]; then
-		echo "Please provide OCS3 namespace and run the script again"
-		exit 0;
+function print_help() {
+	cat > /tmp/helpfile <<EOF
+		
+	collect-command-output.sh, collect-command-output:   This script will collect data for OCS 3 converged mode:
+                                 1. Gluster command output from gluster pods
+                                 2. Heketi command output from heketi pod
+                                 3. Gluster and heketi logs
+                                 4. Gluster and heketi config files
+              
+	Syntax:  ./collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
+
+         -d, --directory-name   Directory where data will be dumped
+         
+         -n, --namespace        Namespace where OCS pods are running
+                  
+         -t, --timeout          Commands in pod will get timeout after the time interval specified [optional]
+
+         -h, --help				Print help
+         
+         
+Author     : Sonal Arora(aarorasona@gmail.com)
+Maintainer : Sonal Arora(aarorasona@gmail.com)
+License    : GPLv3
+Link       : https://github.com/SonaArora/OCS3-Debug-DataCollector
+EOF
+cat /tmp/helpfile
+
+
+}
+
+
+
+
+# command line argument parsing
+
+	args=("$@")
+	len="$#"
+	i=0
+    arg3="true"
+
+	while [ "$i" -lt "$len" ]
+	do
+		option=${args[$i]}
+		case "$option" in
+			-d|--directory)
+				i=$((i+1))
+				if [ -n "${args[$i]}" ]; then
+					DATA_COLLECTION_PATH=${args[$i]}
+					arg1="true"
+				else 
+					arg1="false"
+				fi
+				i=$((i+1))
+			;;
+			-n|--namespace)
+				i=$((i+1))
+				if [ -n "${args[$i]}" ]; then
+					OCS_NAMESPACE=${args[$i]}
+					arg2="true"
+				else
+					arg2="false"
+				fi
+				i=$((i+1))
+			;;
+			-t|--timeout)
+				i=$((i+1))
+				timeout="${args[$i]}"
+				if [  -z "$timeout" ]; then
+				    arg3="false"
+				fi
+				i=$((i+1))
+			;;
+			-h|--help)
+				print_help
+				i=$((i+1))
+			;;	
+			*)
+				print_help
+				exit 1
+			;;
+		esac
+    done
+
+    if [ "$arg1" != "true" ] || [ "$arg2" != "true" ] || [ "$arg3" != "true" ];then
+	    print_help
+		exit 1
 	fi
 
-	oc get projects |grep "$OCS_NAMESPACE"
-	if [[ $? -eq 1 ]]; then
-		echo "Namespace $OCS_NAMESPACE does not exist. Please provide valid OCS namespace"
-		exit 0;
+
+# Check if the data dump directory exits or not. If not, mkdir it
+
+function check_directory() {
+	if [ ! -d "$DATA_COLLECTION_PATH" ]; then
+        mkdir "$DATA_COLLECTION_PATH"
 	fi
 
 }
 
 
+# check if ocs namespace provided in command line argument exists or not.
+
+function check_namespace() {	
+	oc get project |grep "$OCS_NAMESPACE" > /dev/null
+	if [ "$?" == 1 ]; then
+		echo "Given Namespace does not exists. Please provide correct OCS namespace"
+		exit 1
+	fi	
+
+}
+
+
+# check if timeout value is not provided in command line args, then assign default value.
+
+function check_timeout() {
+	if [ -z "$timeout" ]; then
+		timeout=120
+	fi
+
+}
+
+# check if time entered is integer or not
+#function check_timestamp() {
+#
+#
+#}
 
 # Directory structure where data is dumped
 # /tmp/tmp.jskVuZ27zT/
@@ -105,13 +211,9 @@ function initialise() {
 	mkdir "$gluster_log_files_dir"
 	mkdir "$heketi_log_files_dir"
 	
-
-# If no argument is passed, use present working directory
-
-	if [[ ! -d "${DATA_COLLECTION_PATH}" ]]; then
-        DATA_COLLECTION_PATH=$(pwd)
-	fi
-
+	check_directory
+	check_namespace
+	check_timeout
 	get_pod_name
 }
 
@@ -153,9 +255,9 @@ function oc_exec() {
 }
 
 
-# To collect heal commands output from only one running glusterfs pod.
+# gluster command which contains volumename, their output is collected by below code 
 
-function oc_exec_heal_command() {
+function oc_exec_gluster_custom_command() {
 
     container_name="$1"
 	command_dump_directory="$2"
@@ -167,6 +269,8 @@ function oc_exec_heal_command() {
 		    container_commands+=("gluster volume heal $vol info")
 			container_commands+=("gluster volume heal $vol info split-brain")
 			container_commands+=("gluster volume heal $vol statistics heal-count")
+			container_commands+=("gluster volume get $vol all")
+			container_commands+=("gluster volume status $vol clients")
 
 			for command in "${container_commands[@]}";do
 				temp="$command"
@@ -197,7 +301,7 @@ function collect_gluster_output() {
     	# oc exec glusterfs-storage-hcv4w -- bash -c "${gluster_commands[$i]}" >> /tmp/"$filename"
 	done
 
-	oc_exec_heal_command "$first_gluster_pod" "${gluster_command_dir}"
+	oc_exec_gluster_custom_command "$first_gluster_pod" "${gluster_command_dir}"
 }
 
 
@@ -278,7 +382,6 @@ function collect_oc_output() {
 }
 
 
-
 # To copy heketi and gluster config and log files.
 
 function copy_data() {
@@ -294,7 +397,6 @@ function copy_data() {
 		source_directory[$temp]=${args[$i]}
 		temp=$((temp+1))
 	done
-
 
 	temp_string="${source_directory[*]}"
 	echo "Copying $temp_string from $servername to $target_directory"
@@ -362,12 +464,12 @@ function end() {
 	
 }
 
-check_args
+
 initialise
 collect_gluster_output
-collect_gluster_output_from_all_glusterfs_pods
 collect_heketi_output
+collect_gluster_output_from_all_glusterfs_pods
 collect_oc_output
 collect_config_files
-collect_log_files
+#collect_log_files
 end
