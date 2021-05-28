@@ -13,17 +13,17 @@ timeout=""
 DATA_COLLECTION_PATH=
 OCS_NAMESPACE=
 
-# node name where glusterfs and heketi pods are running
+# node names where glusterfs and heketi pods are running
 node=()
 
-# To display help for all options
+# To display help showing all options
 
 function print_help() {
 	cat > /tmp/helpfile <<EOF
 		
 	collect-command-output.sh, collect-command-output:   This script will collect data for OCS 3 converged mode:
-                                 1. Gluster command output from gluster pods
-                                 2. Heketi command output from heketi pod
+                                 1. Gluster commands output from gluster pods
+                                 2. Heketi commands output from heketi pod
                                  3. Gluster and heketi logs
                                  4. Gluster and heketi config files
               
@@ -47,8 +47,6 @@ cat /tmp/helpfile
 
 
 }
-
-
 
 
 # command line argument parsing
@@ -249,7 +247,7 @@ function get_pod_name() {
 }
 
 
-# Fetch node names where glusterfs pods are running
+# Fetch node names where glusterfs pods run i.e node with label glusterfs=storage-host
 
 function get_node_name() {
 	
@@ -432,6 +430,8 @@ function collect_config_files() {
 	gluster_config_file+=("/var/lib/glusterd/")
 	gluster_config_file+=("/etc/target/saveconfig.json")
 
+	print_info "Collecting Config Files of Gluster"
+
 	for n in "${node[@]}"; do	
 		config_dir="$gluster_config_files_dir"/"$n"
 		mkdir "$config_dir"
@@ -451,6 +451,8 @@ function collect_gluster_log_files() {
 	gluster_log_file=()
 	gluster_log_file+=("/var/log/glusterfs/")
 	gluster_log_file+=("/var/log/messages")
+	
+	print_info "Collecting Logs of Gluster"
 
 	for n in "${node[@]}"; do
 		log_dir="$gluster_log_files_dir"/"$n"
@@ -464,8 +466,8 @@ function collect_gluster_log_files() {
 
 function collect_heketi_pod_logs() {
 		# Collect heketi pod logs
+		print_info "Collecting Logs of Heketi"
 		timeout $timeout oc logs "$heketi_pod" -n "$OCS_NAMESPACE" >> "$heketi_log_files_dir"/heketi.log		
-
 }
 
 
@@ -478,18 +480,18 @@ function end() {
 	echo "--------------------------"
 	print_info "Please upload $outputfile.."
 	echo "--------------------------"
-	echo "$tempdirname"|grep "/tmp/tmp." # && rm "$tempdirname/*" && rmdir  "$tempdirname"
+	echo "$tempdirname"|grep "/tmp/tmp." > /dev/null && rm -rf "${tempdirname:?}/"* && rmdir  "$tempdirname"
 	
 }
 
 
 initialise
 
-if [ ${#gluster_pod_array[@]} ]; then
+if [ ${#gluster_pod_array[@]}  -eq 0 ]; then
+	print_warning "No glusterfs pod is running, hence can't collect gluster commands output"
+else
 	collect_gluster_output
 	collect_gluster_output_from_all_glusterfs_pods
-else
-	print_warning "No glusterfs pod is running, hence can't collect gluster commands output"
 fi
 
 if [ -n "$heketi_pod" ]; then
@@ -502,11 +504,11 @@ fi
 
 collect_oc_output
 
-if [ ${#node[@]} ]; then
+if [ ${#node[@]} -eq 0 ]; then
+	print_warning "No nodes have label glusterfs=storage-host, hence can't collect gluster config and log files"
+else
 	collect_config_files
 	collect_gluster_log_files
-else
-	print_warning "No nodes have label glusterfs=storage-host, hence can't collect gluster config and log files"
 fi
 
 end
