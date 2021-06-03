@@ -89,7 +89,7 @@ cat /tmp/helpfile
 				i=$((i+1))
 			;;
 			-h|--help)
-				print_help
+				arg3="false"
 				i=$((i+1))
 			;;	
 			*)
@@ -98,6 +98,7 @@ cat /tmp/helpfile
 			;;
 		esac
     done
+
 
     if [ "$arg1" != "true" ] || [ "$arg2" != "true" ] || [ "$arg3" != "true" ];then
 	    print_help
@@ -235,7 +236,7 @@ function initialise() {
 
 function get_pod_name() {
 
-	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs|grep "Running" | awk '{print $1}')
+	gluster_pods=$(oc get pods -n "$OCS_NAMESPACE" |grep glusterfs-storage|grep "Running" | awk '{print $1}')
 	
 	# shellcheck disable=SC2206
 	gluster_pod_array=(${gluster_pods//[\(\),]/})
@@ -331,6 +332,7 @@ function collect_gluster_output_from_all_glusterfs_pods() {
 	gluster_command_from_each_pod+=("df -h")
 	gluster_command_from_each_pod+=("rpm -qa|grep gluster")
 	gluster_command_from_each_pod+=("gluster peer status")
+	gluster_command_from_each_pod+=("gluster pool list")
 	gluster_command_from_each_pod+=("systemctl status glusterd")
 	gluster_command_from_each_pod+=("systemctl status gluster-blockd")
 	gluster_command_from_each_pod+=("systemctl status gluster-block-target")
@@ -379,7 +381,9 @@ function collect_oc_output() {
 	oc_commands+=("oc get sc")
 	oc_commands+=("oc get pvc")
 	oc_commands+=("oc get pv")
+	oc_commands+=("oc get pv -o yaml")
 	oc_commands+=("oc get serviceaccount")
+
 
 	for (( i=0; i< ${#oc_commands[@]}; i++ )); do
 		file=${oc_commands[$i]}
