@@ -37,7 +37,7 @@ Run script with --help or -h option to understand the arguments:
               
 	Syntax:  ./collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
 
-         -d, --directory-name   Directory where data will be dumped
+         -d, --directory-name   Directory where data will be dumped. Specify absoulte path.
          
          -n, --namespace        Namespace where OCS pods are running
                   
