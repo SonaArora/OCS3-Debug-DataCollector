@@ -19,13 +19,13 @@
 
 - How to run script:
 
----
+~~~
 bash collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
----
+~~~
 
 Run script with --help or -h option to understand the arguments:
 
----
+~~~
 ./collect-command-output.sh -h
 		
 	collect-command-output.sh, collect-command-output:   This script will collect data for OCS 3 converged mode:
@@ -43,8 +43,13 @@ Run script with --help or -h option to understand the arguments:
          -t, --timeout          Commands in pod will get timeout after the time interval specified [optional]
 
          -h, --help				Print help
+   
          
----
+Author     : Sonal Arora(aarorasona@gmail.com)
+Maintainer : Sonal Arora(aarorasona@gmail.com)
+License    : GPLv3
+Link       : https://github.com/SonaArora/OCS3-Debug-DataCollector      
+~~~
 
 - The script dumps the output in a temporary directory at /tmp, and once all data is captured, it will tar it in the directory user has specified in the command line argument. And then it removes the temporary directory created.
 
@@ -53,7 +58,7 @@ Run script with --help or -h option to understand the arguments:
 
 Ex.:
 
----
+~~~
 ./collect-command-output.sh -n app-storage -d /root/dump-ocs-data
  Info : Collecting gluster volume list from glusterfs-storage-c6gtt
  Info : Collecting gluster volume info from glusterfs-storage-c6gtt
@@ -64,4 +69,4 @@ Ex.:
  Info : Please upload /root/dump-ocs-data/ocs3-debug.tar.gz..
 --------------------------
 
----
+~~~
