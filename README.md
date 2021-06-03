@@ -20,7 +20,7 @@
 - How to run script:
 
 ---
-./collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
+bash collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
 ---
 
 Run script with --help or -h option to understand the arguments:
@@ -44,11 +44,6 @@ Run script with --help or -h option to understand the arguments:
 
          -h, --help				Print help
          
-         
-Author     : Sonal Arora(aarorasona@gmail.com)
-Maintainer : Sonal Arora(aarorasona@gmail.com)
-License    : GPLv3
-Link       : https://github.com/SonaArora/OCS3-Debug-DataCollector
 ---
 
 - The script dumps the output in a temporary directory at /tmp, and once all data is captured, it will tar it in the directory user has specified in the command line argument. And then it removes the temporary directory created.
