@@ -20,7 +20,8 @@
 - How to run script:
 
 ~~~
-bash collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
+chmod +x collect-command-output.sh 
+./collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
 ~~~
 
 Run script with --help or -h option to understand the arguments:
