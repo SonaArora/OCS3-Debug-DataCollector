@@ -29,7 +29,7 @@ function print_help() {
               
 	Syntax:  ./collect-command-output.sh <-d|--directory-name> <-n|--namespace> [-t|--timeout]
 
-         -d, --directory-name   Directory where data will be dumped. Specify absoulte path.
+         -d, --directory-name   Directory where data will be dumped
          
          -n, --namespace        Namespace where OCS pods are running
                   
@@ -51,59 +51,59 @@ cat /tmp/helpfile
 
 # command line argument parsing
 
-args=("$@")
-len="$#"
-i=0
-arg3="true"
+	args=("$@")
+	len="$#"
+	i=0
+    arg3="true"
 
-while [ "$i" -lt "$len" ]
-do
-	option=${args[$i]}
-	case "$option" in
-		-d|--directory)
-			i=$((i+1))
-			if [ -n "${args[$i]}" ]; then
-				DATA_COLLECTION_PATH=${args[$i]}
-				arg1="true"
-			else 
-				arg1="false"
-			fi
-			i=$((i+1))
-		;;
-		-n|--namespace)
-			i=$((i+1))
-			if [ -n "${args[$i]}" ]; then
-				OCS_NAMESPACE=${args[$i]}
-				arg2="true"
-			else
-				arg2="false"
-			fi
-			i=$((i+1))
-		;;
-		-t|--timeout)
-			i=$((i+1))
-			timeout="${args[$i]}"
-			if [  -z "$timeout" ]; then
-			    arg3="false"
+	while [ "$i" -lt "$len" ]
+	do
+		option=${args[$i]}
+		case "$option" in
+			-d|--directory)
+				i=$((i+1))
+				if [ -n "${args[$i]}" ]; then
+					DATA_COLLECTION_PATH=${args[$i]}
+					arg1="true"
+				else 
+					arg1="false"
 				fi
-			i=$((i+1))
-		;;
-		-h|--help)
-			arg3="false"
-			i=$((i+1))
-		;;	
-		*)
-			print_help
-			exit 1
-		;;
-	esac
-done
+				i=$((i+1))
+			;;
+			-n|--namespace)
+				i=$((i+1))
+				if [ -n "${args[$i]}" ]; then
+					OCS_NAMESPACE=${args[$i]}
+					arg2="true"
+				else
+					arg2="false"
+				fi
+				i=$((i+1))
+			;;
+			-t|--timeout)
+				i=$((i+1))
+				timeout="${args[$i]}"
+				if [  -z "$timeout" ]; then
+				    arg3="false"
+				fi
+				i=$((i+1))
+			;;
+			-h|--help)
+				arg3="false"
+				i=$((i+1))
+			;;	
+			*)
+				print_help
+				exit 1
+			;;
+		esac
+    done
 
 
-if [ "$arg1" != "true" ] || [ "$arg2" != "true" ] || [ "$arg3" != "true" ];then
-    print_help
-	exit 1
-fi
+    if [ "$arg1" != "true" ] || [ "$arg2" != "true" ] || [ "$arg3" != "true" ];then
+	    print_help
+		exit 1
+	fi
 
 
 function print_info() {
@@ -122,7 +122,7 @@ function print_warning() {
 
 function check_directory() {
 	if [ ! -d "$DATA_COLLECTION_PATH" ]; then
-        mkdir -p "$DATA_COLLECTION_PATH"
+        mkdir "$DATA_COLLECTION_PATH"
 	fi
 
 }
@@ -209,6 +209,7 @@ function initialise() {
 	heketi_command_output_dir="$tempdirname/command_output/heketi_command_output"
 	oc_command_output_dir="$tempdirname/command_output/oc_command_output"
 	gluster_config_files_dir="$tempdirname/config_file/gluster"
+#	heketi_config_files_dir="$tempdirname/config_file/heketi"
 	gluster_log_files_dir="$tempdirname/logs/gluster"
 	heketi_log_files_dir="$tempdirname/logs/heketi"
 
@@ -217,6 +218,7 @@ function initialise() {
 	mkdir "$heketi_command_output_dir"
 	mkdir "$oc_command_output_dir"
 	mkdir "$gluster_config_files_dir"
+#	mkdir "$heketi_config_files_dir"
 	mkdir "$gluster_log_files_dir"
 	mkdir "$heketi_log_files_dir"
 	
